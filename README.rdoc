@@ -1,6 +1,14 @@
 = spreadsheetx
 
-Description goes here.
+This gem facilitates a templatized approach to working with Excel files.  It only supports Microsoft's new .xlsx format (because it's xml based and somewhat sane to work with).
+
+We use this gem to generate reports for clients, where the reports have substantial charts and styling throughout.
+
+The work flow goes a little something like this:
+* Create a report in Excel that has all your charts and styling
+* Save the report with placeholder data
+* Programmatically replace or add rows and cells
+* When the new file is opened, formatting and charts are preserved
 
 == Contributing to spreadsheetx
  
