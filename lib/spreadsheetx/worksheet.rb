@@ -129,7 +129,8 @@ module SpreadsheetX
     
     # turns a cell address into its excel name, 1,1 = A1  2,3 = C2 etc.
     def self.cell_id(col_number, row_number)
-      raise 'There is no row 0, start at 1 instead' if row_number < 1
+      raise 'There is no row 0 in an excel sheet, start at 1 instead' if row_number < 1
+      raise 'There is no column 0 in an excel sheet, start at 1 instead' if col_number < 1
       letter = 'A'
       # some day, speed this up
       (col_number.to_i-1).times{letter = letter.succ}
