@@ -18,8 +18,10 @@ module SpreadsheetX
 
         # read contents of this file
         file_contents = f.read 
-        #parse the XML and hold the doc
-        @xml_doc = REXML::Document.new(file_contents)
+        # parse the XML and hold the doc
+        @xml_doc = XML::Document.string(file_contents)
+        # set the default namespace
+        @xml_doc.root.namespaces.default_prefix = 'spreadsheetml'
 
       end
       
@@ -30,35 +32,55 @@ module SpreadsheetX
       
       cell_id = SpreadsheetX::Worksheet.cell_id(col_number, row_number)
       
-      rows = @xml_doc.get_elements("worksheet/sheetData/row[@r=#{row_number}]")
+      row = @xml_doc.find_first("spreadsheetml:sheetData/spreadsheetml:row[@r=#{row_number}]")
+      
       # was this row found
-      if rows.empty?
+      unless row
         # build a new row
-        row = @xml_doc.elements['worksheet'].elements['sheetData'].add_element('row', {'r' => row_number})
-      else
-        # x path returns an array, but we know there is only one row with this number
-        row = rows.first
+        row = XML::Node.new('row')
+        row['r'] = row_number.to_s
+        # add it to the other rows
+        @xml_doc.find_first('spreadsheetml:sheetData') << row
       end
       
-      cells = row.get_elements("c[@r='#{cell_id}']")
-      if cells.empty?
-        cell = row.add_element('c', {'r' => cell_id})
-      else
-        # x path returns an array, but we know there is only one row with this number
-        cell = cells.first
+      cell = row.find_first("spreadsheetml:c[@r='#{cell_id}']")
+      # was this row found
+      unless cell
+        # build a new cell
+        cell = XML::Node.new('c')
+        cell['r'] = cell_id
+        # add it to the other rows
+        row << cell
       end
       
-      # first clear out any existing values
-      cell.delete_element('*')
+      # create the node which represents the value in the cell
+      if val.kind_of? String
+        
+        # put the strings inline to make life easier
+        cell['t'] = 'inlineStr'
+        
+        # the string node looke like <is><t>string</t></is>
+        is = XML::Node.new('is')
+        t = XML::Node.new('t')
+        t.content = val
+        
+        cell_value = ( is << t )
+        
+      else
+        
+        # incase this was an inline string, clear out this attribute
+        cell['t'] = ''
+        
+        cell_value = XML::Node.new('v')
+        cell_value.content = val.to_s
+
+      end
+      
+      # first clear out any existing values (nodes)
+      cell.find('*').each{|n| n.remove! }
 
       # now we put the value in the cell
-      if val.kind_of? String
-        cell.attributes['t'] = 'inlineStr'
-        cell.add_element('is').add_element('t').add_text(val)
-      else
-        cell.attributes['t'] = nil
-        cell.add_element('v').add_text(val.to_s)
-      end
+      cell << cell_value
 
     end
     
@@ -66,8 +88,8 @@ module SpreadsheetX
     # NOTE: this is the count of those rows, not the length of the document
     def row_count
       count = 0
-      @xml_doc.elements.each('worksheet/sheetData/row'){ count+=1 }
-      count
+      # target the sheetData rows
+      @xml_doc.find('spreadsheetml:sheetData/spreadsheetml:row').count
     end
 
     # returns the xml representation of this worksheet
@@ -77,6 +99,7 @@ module SpreadsheetX
     
     # turns a cell address into its excel name, 1,1 = A1  2,3 = C2 etc.
     def self.cell_id(col_number, row_number)
+      raise 'There is no row 0, start at 1 instead' if row_number < 1
       letter = 'A'
       # some day, speed this up
       (col_number.to_i-1).times{letter = letter.succ}

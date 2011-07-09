@@ -19,10 +19,15 @@ module SpreadsheetX
 
           #parse the XML and build the worksheets
           @worksheets = []
-          REXML::Document.new(file_contents).elements.each('workbook/sheets/sheet') do |node|
-            sheet_id = node.attributes['sheetId'].to_i
-            r_id = node.attributes['r:id'].gsub('rId','').to_i
-            name = node.attributes['name'].to_s
+          # parse the XML and hold the doc
+          xml_doc = XML::Document.string(file_contents)
+          # set the default namespace
+          xml_doc.root.namespaces.default_prefix = 'spreadsheetml'
+          
+          xml_doc.find('spreadsheetml:sheets/spreadsheetml:sheet').each do |node|
+            sheet_id = node['sheetId'].to_i
+            r_id = node['id'].gsub('rId','').to_i
+            name = node['name'].to_s
             @worksheets.push SpreadsheetX::Worksheet.new(archive, sheet_id, r_id, name)
           end
           
