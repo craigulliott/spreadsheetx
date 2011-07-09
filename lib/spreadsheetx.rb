@@ -7,6 +7,7 @@ require 'fileutils'
 # 
 require 'spreadsheetx/workbook'
 require 'spreadsheetx/worksheet'
+require 'spreadsheetx/cell_format'
 
 module SpreadsheetX
   

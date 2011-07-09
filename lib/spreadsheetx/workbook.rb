@@ -5,6 +5,7 @@ module SpreadsheetX
 
     attr_reader :path
     attr_reader :worksheets
+    attr_reader :formats
 
     # return a Workbook object which relates to an existing xlsx file on disk
     def initialize(path)
@@ -33,6 +34,26 @@ module SpreadsheetX
           
         end
 
+        # open the styles, to get the cell formats
+        archive.fopen('xl/styles.xml') do |f| 
+
+          # read contents of this file
+          file_contents = f.read 
+
+          #parse the XML and build the worksheets
+          @formats = []
+          # parse the XML and hold the doc
+          xml_doc = XML::Document.string(file_contents)
+          # set the default namespace
+          xml_doc.root.namespaces.default_prefix = 'spreadsheetml'
+          
+          format_id = 0
+          xml_doc.find('spreadsheetml:numFmts/spreadsheetml:numFmt').each do |node|
+            @formats.push SpreadsheetX::CellFormat.new((format_id+=1), node['formatCode'])
+          end
+          
+        end
+        
       end
     end
     
@@ -53,6 +74,7 @@ module SpreadsheetX
       end
 
     end
+
 
   end
   

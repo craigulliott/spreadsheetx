@@ -27,7 +27,7 @@ describe "Spreadsheetx" do
     empty_xlsx_file = "#{File.dirname(__FILE__)}/../templates/spec.xlsx"
     workbook = SpreadsheetX.open(empty_xlsx_file)
 
-    workbook.worksheets.last.row_count.should == 4
+    workbook.worksheets.last.row_count.should == 8
     
   end
   
@@ -107,6 +107,7 @@ describe "Spreadsheetx" do
     workbook = SpreadsheetX.open(empty_xlsx_file)
   
     workbook.worksheets.last.update_cell(9, 9, Time.now)
+    workbook.worksheets.last.update_cell(1, 4, 'A string')
     workbook.worksheets.last.update_cell(9, 10, 'A string')
     workbook.worksheets.last.update_cell(9, 11, 10.3)
     workbook.worksheets.last.update_cell(9, 12, 53)
@@ -116,7 +117,35 @@ describe "Spreadsheetx" do
     workbook.save(new_xlsx_file)
   
   end
+
+  it "can read and return a list of number formats currently in the document" do
   
+    # a valid xlsx file used for testing
+    empty_xlsx_file = "#{File.dirname(__FILE__)}/../templates/spec.xlsx"
+    workbook = SpreadsheetX.open(empty_xlsx_file)
   
+    workbook.formats.count.should == 3
+    workbook.formats.first.id.to_i.should > 0
+    puts workbook.formats.first.format.should == '[$-F400]h:mm:ss\ AM/PM'
+
+    new_xlsx_file = "#{File.dirname(__FILE__)}/../templates/spec_various_content.xlsx"
+    workbook.save(new_xlsx_file)
+  
+  end
+  
+
+  it "can set formats on cells" do
+  
+    # a valid xlsx file used for testing
+    empty_xlsx_file = "#{File.dirname(__FILE__)}/../templates/spec.xlsx"
+    workbook = SpreadsheetX.open(empty_xlsx_file)
+  
+    date_format = workbook.formats.first
+    workbook.worksheets.last.update_cell(1, 8, Time.now, date_format)
+
+    new_xlsx_file = "#{File.dirname(__FILE__)}/../templates/spec_cell_format.xlsx"
+    workbook.save(new_xlsx_file)
+  
+  end
   
 end

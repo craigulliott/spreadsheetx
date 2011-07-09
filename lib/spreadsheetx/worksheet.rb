@@ -28,12 +28,14 @@ module SpreadsheetX
     end
 
     # update the value of a particular cell, if the row or cell doesnt exist in the XML, then it will be created
-    def update_cell(col_number, row_number, val)
+    def update_cell(col_number, row_number, val, format=nil)
       
       cell_id = SpreadsheetX::Worksheet.cell_id(col_number, row_number)
 
+      val_is_a_date = (val.kind_of?(Date) || val.kind_of?(Time) || val.kind_of?(DateTime))
+      
       # if the val is nil or an empty string, then just delete the cell
-      if val.nil? || val.empty?
+      if val.nil? || val == ''
         if cell = @xml_doc.find_first("spreadsheetml:sheetData/spreadsheetml:row[@r=#{row_number}]/spreadsheetml:c[@r='#{cell_id}']")
           cell.remove!
         end
@@ -44,11 +46,19 @@ module SpreadsheetX
       
       # was this row found
       unless row
+        
         # build a new row
         row = XML::Node.new('row')
         row['r'] = row_number.to_s
-        # add it to the other rows, preserving the order
-        @xml_doc.find_first('spreadsheetml:sheetData') << row
+        
+        # if there are no rows higher than this one, then add this row to the end of the sheetData
+        next_largest = @xml_doc.find_first("spreadsheetml:sheetData/spreadsheetml:row[@r>#{row_number}]")
+        if next_largest
+          next_largest.prev = row
+        else  # there are no rows higher than this one
+          # add this row to the end of the sheetData
+          @xml_doc.find_first('spreadsheetml:sheetData') << row
+        end
       end
       
       cell = row.find_first("spreadsheetml:c[@r='#{cell_id}']")
@@ -61,26 +71,38 @@ module SpreadsheetX
         row << cell
       end
       
+      # are we setting a format
+      cell['s'] = format.to_s
+      
+      # reset this attribute
+      cell['t'] = ''
+      
       # create the node which represents the value in the cell
-      if val.kind_of? String
-        
-        # put the strings inline to make life easier
-        cell['t'] = 'inlineStr'
-        
-        # the string node looke like <is><t>string</t></is>
-        is = XML::Node.new('is')
-        t = XML::Node.new('t')
-        t.content = val
-        
-        cell_value = ( is << t )
-        
-      else
-        
-        # incase this was an inline string, clear out this attribute
-        cell['t'] = ''
+      
+      # numeric types
+      if val.kind_of?(Integer) || val.kind_of?(Float) || val.kind_of?(Fixnum)
         
         cell_value = XML::Node.new('v')
         cell_value.content = val.to_s
+
+      # if we are using a format, then dates are stored as floats, otherwise they get caught by string use a string
+      elsif format && val_is_a_date
+        
+        cell_value = XML::Node.new('v')
+        # dates are stored as flaots, otherwise use a string
+        cell_value.content = (val.to_time.to_f / (60*60*24)).to_s
+        
+      else # assume its a string
+
+        # put the strings inline to make life easier
+        cell['t'] = 'inlineStr'
+        
+        # the string node looks like <is><t>string</t></is>
+        is = XML::Node.new('is')
+        t = XML::Node.new('t')
+        t.content = val_is_a_date ? val.to_time.strftime('%Y-%m-%d %H:%M:%S') : val.to_s
+        
+        cell_value = ( is << t )
 
       end
       
@@ -102,7 +124,7 @@ module SpreadsheetX
 
     # returns the xml representation of this worksheet
     def to_s
-      @xml_doc.to_s
+      @xml_doc.to_s(:indent => false).gsub(/\n/,"\r\n")
     end
     
     # turns a cell address into its excel name, 1,1 = A1  2,3 = C2 etc.
