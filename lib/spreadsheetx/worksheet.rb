@@ -31,6 +31,14 @@ module SpreadsheetX
     def update_cell(col_number, row_number, val)
       
       cell_id = SpreadsheetX::Worksheet.cell_id(col_number, row_number)
+
+      # if the val is nil or an empty string, then just delete the cell
+      if val.nil? || val.empty?
+        if cell = @xml_doc.find_first("spreadsheetml:sheetData/spreadsheetml:row[@r=#{row_number}]/spreadsheetml:c[@r='#{cell_id}']")
+          cell.remove!
+        end
+        return
+      end
       
       row = @xml_doc.find_first("spreadsheetml:sheetData/spreadsheetml:row[@r=#{row_number}]")
       
@@ -39,7 +47,7 @@ module SpreadsheetX
         # build a new row
         row = XML::Node.new('row')
         row['r'] = row_number.to_s
-        # add it to the other rows
+        # add it to the other rows, preserving the order
         @xml_doc.find_first('spreadsheetml:sheetData') << row
       end
       
@@ -49,7 +57,7 @@ module SpreadsheetX
         # build a new cell
         cell = XML::Node.new('c')
         cell['r'] = cell_id
-        # add it to the other rows
+        # add it to the other cells in this row
         row << cell
       end
       
